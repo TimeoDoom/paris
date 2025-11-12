@@ -329,3 +329,23 @@ footer {
 .voted-badge {
   color: #33475b;
 }
+.submit-admin-pass {
+  padding: 8px 18px;
+  border-radius: 12px;
+  border: none;
+  cursor: pointer;
+  font-size: 16px;
+  background: linear-gradient(180deg, #2ec4b6, #3aa047);
+  color: white;
+  box-shadow: 0 8px 20px rgba(76, 175, 80, 0.18);
+}
+
+.cancel-admin-pass {
+  padding: 8px 18px;
+  border-radius: 12px;
+  border: none;
+  cursor: pointer;
+  font-size: 16px;
+  background: #ff3366;
+  color: #fff;
+}

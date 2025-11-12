@@ -13,11 +13,9 @@ let adminLoginButton = document.querySelector(".admin-login");
 let adminListenerAttached = false;
 
 function ensureAdminButton() {
-  // prefer an existing button in the HTML
   if (!adminLoginButton)
     adminLoginButton = document.querySelector(".admin-login");
 
-  // fallback: create one if it's not present
   if (!adminLoginButton) {
     adminLoginButton = document.createElement("button");
     adminLoginButton.className = "admin-login";
@@ -32,28 +30,80 @@ function ensureAdminButton() {
   if (!adminListenerAttached) {
     adminLoginButton.addEventListener("click", async () => {
       const pwd = getAdminPassword();
-      if (!pwd) {
-        const answer = prompt("Mot de passe admin :");
-        if (!answer) return;
+      const passoverlay = document.createElement("div");
+      passoverlay.classList.add("overlay");
+      passoverlay.innerHTML = `
+        <div class="overlay-content">
+          <h2>Mot de passe administrateur</h2>
+          <input type="password" class="admin-pass-input" />
+          <div style="margin-top:12px;display:flex;gap:8px;justify-content:center;">
+            <button class="submit-admin-pass">Valider</button>
+            <button class="cancel-admin-pass">Annuler</button>
+          </div>
+        </div>
+        `;
 
-        try {
-          const res = await fetch("/admin/login", {
-            method: "POST",
-            headers: { "Content-Type": "application/json" },
-            body: JSON.stringify({ password: answer }),
-          });
-          if (!res.ok) {
-            const j = await res.json().catch(() => ({}));
-            alert(j.error || "Mot de passe incorrect");
+      if (!pwd) {
+        document.body.appendChild(passoverlay);
+
+        const input = passoverlay.querySelector(".admin-pass-input");
+        const submitBtn = passoverlay.querySelector(".submit-admin-pass");
+        const cancelBtn = passoverlay.querySelector(".cancel-admin-pass");
+
+        function closePassOverlay() {
+          if (passoverlay && passoverlay.parentNode)
+            passoverlay.parentNode.removeChild(passoverlay);
+        }
+
+        async function handleSubmit() {
+          const answer = (input && input.value) || "";
+          if (!answer) {
+            alert("Veuillez entrer le mot de passe");
             return;
           }
-          // success
-          setAdminPassword(answer);
-          updateAdminUI();
-        } catch (e) {
-          console.error("Erreur verification admin:", e);
-          alert("Impossible de vérifier le mot de passe admin (erreur réseau)");
+          submitBtn.disabled = true;
+          try {
+            const res = await fetch("/admin/login", {
+              method: "POST",
+              headers: { "Content-Type": "application/json" },
+              body: JSON.stringify({ password: answer }),
+            });
+            if (!res.ok) {
+              const j = await res.json().catch(() => ({}));
+              alert(j.error || "Mot de passe incorrect");
+              submitBtn.disabled = false;
+              return;
+            }
+            setAdminPassword(answer);
+            updateAdminUI();
+            closePassOverlay();
+          } catch (e) {
+            console.error("Erreur verification admin:", e);
+            alert(
+              "Impossible de vérifier le mot de passe admin (erreur réseau)"
+            );
+            submitBtn.disabled = false;
+          }
         }
+
+        function handleCancel() {
+          closePassOverlay();
+        }
+
+        submitBtn.addEventListener("click", handleSubmit);
+        cancelBtn.addEventListener("click", handleCancel);
+
+        input.addEventListener("keydown", (ev) => {
+          if (ev.key === "Enter") {
+            ev.preventDefault();
+            handleSubmit();
+          }
+          if (ev.key === "Escape") {
+            handleCancel();
+          }
+        });
+
+        input.focus();
       } else {
         if (confirm("Se déconnecter en tant qu'admin ?")) {
           setAdminPassword(null);
@@ -109,6 +159,7 @@ overlay.innerHTML = `
         <input class="persoOui" type="text" placeholder="oui" />
         <input class="persoNon" type="text" placeholder="non"/>
         <input type="date" />
+        <input type="time" />
         <div class="overlay-options">
             <button class="submit-bet">Soumettre le pari</button>
             <button class="close-overlay">Fermer</button>
@@ -158,17 +209,23 @@ function addBetCard(pari) {
   if (dateStr) {
     const normalized = dateStr.replace(" ", "T");
     const target = new Date(normalized);
-    const today = new Date();
-    const todayMid = new Date(
-      today.getFullYear(),
-      today.getMonth(),
-      today.getDate()
-    );
-    const diffDays = Math.ceil((target - todayMid) / (1000 * 60 * 60 * 24));
-    if (!isNaN(diffDays)) {
-      if (diffDays >= 0)
-        daysLeftText = `${diffDays} jour${diffDays > 1 ? "s" : ""} restants`;
-      else {
+    const now = new Date();
+    const diffMs = target - now;
+    if (!isNaN(diffMs)) {
+      if (diffMs > 0) {
+        const days = Math.floor(diffMs / (1000 * 60 * 60 * 24));
+        const hours = Math.floor(
+          (diffMs % (1000 * 60 * 60 * 24)) / (1000 * 60 * 60)
+        );
+        const mins = Math.floor((diffMs % (1000 * 60 * 60)) / (1000 * 60));
+        if (days > 0)
+          daysLeftText = ` Fin dans ${days} jour${
+            days > 1 ? "s" : ""
+          } ${hours}h`;
+        else if (hours > 0)
+          daysLeftText = `${hours} heure${hours > 1 ? "s" : ""} ${mins}m`;
+        else daysLeftText = `${mins} minute${mins > 1 ? "s" : ""}`;
+      } else {
         daysLeftText = "Date passée";
         expired = true;
       }
@@ -176,6 +233,16 @@ function addBetCard(pari) {
   }
 
   newBetCard.dataset.expired = expired ? "true" : "false";
+  const ouiField = overlay.querySelector(".persoOui");
+  const nonField = overlay.querySelector(".persoNon");
+  const ouiInput =
+    ouiField && ouiField.value && ouiField.value.trim()
+      ? ouiField.value.trim()
+      : "Oui";
+  const nonInput =
+    nonField && nonField.value && nonField.value.trim()
+      ? nonField.value.trim()
+      : "Non";
 
   newBetCard.innerHTML = `
     <div class="bet-header">
@@ -184,7 +251,7 @@ function addBetCard(pari) {
     </div>
     <p>${pari.description || ""}</p>
     <div class="bet-options">
-      <button class="yes">Oui</button>
+      <button class="yes">${ouiInput}</button>
       <div class="vote-center">
         <div class="slide-bar">
           <div class="green"></div>
@@ -192,7 +259,7 @@ function addBetCard(pari) {
         </div>
         <div class="pct-text"><span class="pct-oui">50%</span> / <span class="pct-non">50%</span></div>
       </div>
-      <button class="no">Non</button>
+      <button class="no">${nonInput}</button>
     </div>
   `;
 
@@ -241,7 +308,10 @@ function addBetCard(pari) {
 submitBetButton.addEventListener("click", async () => {
   const betName = overlay.querySelector("input").value.trim();
   const betDescription = overlay.querySelector("textarea").value.trim();
-  const dateStr = overlay.querySelector("input[type='date']").value;
+  const dateVal = overlay.querySelector("input[type='date']").value;
+  const timeVal = overlay.querySelector("input[type='time']").value;
+  let dateStr = null;
+  if (dateVal) dateStr = timeVal ? `${dateVal} ${timeVal}` : dateVal;
 
   if (!betName) {
     alert("Le nom du pari est obligatoire");
