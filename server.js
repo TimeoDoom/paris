@@ -44,7 +44,7 @@ app.post("/admin/login", (req, res) => {
 });
 
 app.post("/create-pari", (req, res) => {
-  const { id, titre, description, dateStr } = req.body;
+  const { id, titre, description, dateStr, optionA, optionB } = req.body;
   if (!id || !titre)
     return res.status(400).json({ error: "id et titre requis" });
 
@@ -59,8 +59,15 @@ app.post("/create-pari", (req, res) => {
   }
 
   db.run(
-    "INSERT INTO paris (id, titre, description, dateTarget) VALUES (?, ?, ?, ?)",
-    [id, titre, description || null, dateStr || null],
+    "INSERT INTO paris (id, titre, description, dateTarget, optionA, optionB) VALUES (?, ?, ?, ?, ?, ?)",
+    [
+      id,
+      titre,
+      description || null,
+      dateStr || null,
+      optionA || "Oui",
+      optionB || "Non",
+    ],
     function (err) {
       if (err) {
         return res.status(409).json({ error: err.message });

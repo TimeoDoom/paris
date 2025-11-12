@@ -14,8 +14,10 @@ db.serialize(() => {
             description TEXT,
       date_creation DATETIME DEFAULT CURRENT_TIMESTAMP,
       dateTarget TEXT,
-            votesA INTEGER DEFAULT 0,
-            votesB INTEGER DEFAULT 0
+      votesA INTEGER DEFAULT 0,
+      votesB INTEGER DEFAULT 0,
+      optionA TEXT DEFAULT 'Oui',
+      optionB TEXT DEFAULT 'Non'
         )
     `);
 
@@ -32,9 +34,8 @@ db.serialize(() => {
   // Ensure dateTarget column exists for older DBs that may not have it
   db.all("PRAGMA table_info(paris)", (err, cols) => {
     if (err) return;
-    const hasDateTarget =
-      cols && cols.some((c) => c && c.name === "dateTarget");
-    if (!hasDateTarget) {
+    const colNames = (cols || []).map((c) => c && c.name).filter(Boolean);
+    if (!colNames.includes("dateTarget")) {
       db.run("ALTER TABLE paris ADD COLUMN dateTarget TEXT", (err2) => {
         if (err2)
           console.error(
@@ -43,8 +44,31 @@ db.serialize(() => {
           );
       });
     }
+    if (!colNames.includes("optionA")) {
+      db.run(
+        "ALTER TABLE paris ADD COLUMN optionA TEXT DEFAULT 'Oui'",
+        (err2) => {
+          if (err2)
+            console.error(
+              "Impossible d'ajouter la colonne optionA:",
+              err2.message
+            );
+        }
+      );
+    }
+    if (!colNames.includes("optionB")) {
+      db.run(
+        "ALTER TABLE paris ADD COLUMN optionB TEXT DEFAULT 'Non'",
+        (err2) => {
+          if (err2)
+            console.error(
+              "Impossible d'ajouter la colonne optionB:",
+              err2.message
+            );
+        }
+      );
+    }
   });
 });
-
 
 module.exports = db;

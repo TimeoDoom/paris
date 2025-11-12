@@ -233,16 +233,9 @@ function addBetCard(pari) {
   }
 
   newBetCard.dataset.expired = expired ? "true" : "false";
-  const ouiField = overlay.querySelector(".persoOui");
-  const nonField = overlay.querySelector(".persoNon");
-  const ouiInput =
-    ouiField && ouiField.value && ouiField.value.trim()
-      ? ouiField.value.trim()
-      : "Oui";
-  const nonInput =
-    nonField && nonField.value && nonField.value.trim()
-      ? nonField.value.trim()
-      : "Non";
+  // Use labels saved in the pari, fallback to defaults
+  const ouiInput = pari.optionA || "Oui";
+  const nonInput = pari.optionB || "Non";
 
   newBetCard.innerHTML = `
     <div class="bet-header">
@@ -284,8 +277,11 @@ function addBetCard(pari) {
       badge.style.fontWeight = "600";
       cardEl.querySelector(".bet-header").appendChild(badge);
     }
-    if (choice === "A") badge.textContent = "Vous avez voté : Oui";
-    else if (choice === "B") badge.textContent = "Vous avez voté : Non";
+    // Show the actual label used by the buttons
+    const yesLabel = (cardEl.querySelector(".yes") || {}).textContent || "Oui";
+    const noLabel = (cardEl.querySelector(".no") || {}).textContent || "Non";
+    if (choice === "A") badge.textContent = `Vous avez voté : ${yesLabel}`;
+    else if (choice === "B") badge.textContent = `Vous avez voté : ${noLabel}`;
     else badge.textContent = "Vous avez voté";
   }
 
@@ -320,6 +316,9 @@ submitBetButton.addEventListener("click", async () => {
 
   const id = crypto.randomUUID();
 
+  const optionA = overlay.querySelector(".persoOui").value.trim() || null;
+  const optionB = overlay.querySelector(".persoNon").value.trim() || null;
+
   const res = await fetch("/create-pari", {
     method: "POST",
     headers: Object.assign(
@@ -334,6 +333,8 @@ submitBetButton.addEventListener("click", async () => {
       titre: betName,
       description: betDescription,
       dateStr,
+      optionA,
+      optionB,
     }),
   });
 
@@ -404,8 +405,14 @@ betGrid.addEventListener("click", (e) => {
             badge.style.fontWeight = "600";
             card.querySelector(".bet-header").appendChild(badge);
           }
+          const yesLabel =
+            (card.querySelector(".yes") || {}).textContent || "Oui";
+          const noLabel =
+            (card.querySelector(".no") || {}).textContent || "Non";
           badge.textContent =
-            choix === "A" ? "Vous avez voté : Oui" : "Vous avez voté : Non";
+            choix === "A"
+              ? `Vous avez voté : ${yesLabel}`
+              : `Vous avez voté : ${noLabel}`;
         }
 
         loadParis();
